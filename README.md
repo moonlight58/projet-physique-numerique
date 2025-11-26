@@ -257,25 +257,25 @@ class ForestGrid:
         self.temperature = np.zeros((size, size))
         self.humidity = np.random.uniform(0.3, 0.7, (size, size))
         self.elevation = self.generate_terrain()
-        
+
     def generate_terrain(self):
         # Bruit de Perlin ou simple gradient
         x = np.linspace(0, 1, self.size)
         y = np.linspace(0, 1, self.size)
         X, Y = np.meshgrid(x, y)
         return np.sin(4*np.pi*X) * np.cos(4*np.pi*Y)
-    
+
     def ignite(self, x, y):
         """Déclenche un feu à la position (x, y)"""
         if self.grid[x, y] == CellState.TREE.value:
             self.grid[x, y] = CellState.FIRE.value
             self.temperature[x, y] = 1000  # °C
-    
+
     def propagate_simple(self, p=0.5):
         """Modèle de percolation simple"""
         new_grid = self.grid.copy()
         fire_cells = np.argwhere(self.grid == CellState.FIRE.value)
-        
+
         for x, y in fire_cells:
             # 4-voisinage
             for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
@@ -284,20 +284,20 @@ class ForestGrid:
                     if self.grid[nx, ny] == CellState.TREE.value:
                         if np.random.random() < p:
                             new_grid[nx, ny] = CellState.FIRE.value
-            
+
             # Le feu s'éteint
             new_grid[x, y] = CellState.ASH.value
-        
+
         self.grid = new_grid
         return np.sum(self.grid == CellState.FIRE.value) > 0  # Continue?
-    
+
     def propagate_physical(self, p_base=0.3, wind=(0,0), k_wind=0.5):
         """Modèle avec vent et topographie"""
         new_grid = self.grid.copy()
         fire_cells = np.argwhere(self.grid == CellState.FIRE.value)
-        
+
         for x, y in fire_cells:
-            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1), 
+            for dx, dy in [(-1,0), (1,0), (0,-1), (0,1),
                            (-1,-1), (-1,1), (1,-1), (1,1)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.size and 0 <= ny < self.size:
@@ -306,26 +306,26 @@ class ForestGrid:
                         angle = np.arctan2(dy, dx)
                         wind_angle = np.arctan2(wind[1], wind[0])
                         wind_factor = 1 + k_wind * np.cos(angle - wind_angle)
-                        
+
                         # Facteur de pente
                         slope = self.elevation[nx, ny] - self.elevation[x, y]
                         slope_factor = 1 + 0.5 * slope if slope > 0 else 1
-                        
+
                         # Facteur d'humidité
                         humidity_factor = 1 - self.humidity[nx, ny]
-                        
+
                         # Probabilité totale
                         p_total = p_base * wind_factor * slope_factor * humidity_factor
                         p_total = np.clip(p_total, 0, 1)
-                        
+
                         if np.random.random() < p_total:
                             new_grid[nx, ny] = CellState.FIRE.value
-            
+
             new_grid[x, y] = CellState.ASH.value
-        
+
         self.grid = new_grid
         return np.sum(self.grid == CellState.FIRE.value) > 0
-    
+
     def diffuse_heat(self, k=0.1, dt=0.1, dx=1.0):
         """Équation de la chaleur (schéma explicite)"""
         laplacian = (
@@ -335,17 +335,17 @@ class ForestGrid:
             np.roll(self.temperature, -1, axis=1) -
             4 * self.temperature
         ) / dx**2
-        
+
         # Source de chaleur (combustion)
         Q = np.zeros_like(self.temperature)
         Q[self.grid == CellState.FIRE.value] = 5000  # W/m²
-        
+
         # Mise à jour
         self.temperature += k * dt * laplacian + Q * dt
-        
+
         # Refroidissement
         self.temperature *= 0.95
-        
+
         # Ignition par température
         ignition_mask = (self.temperature > 300) & (self.grid == CellState.TREE.value)
         self.grid[ignition_mask] = CellState.FIRE.value
@@ -361,19 +361,19 @@ import matplotlib.animation as animation
 
 def animate_fire(forest, n_steps=100):
     fig, ax = plt.subplots(figsize=(10, 10))
-    
+
     colors = ['white', 'green', 'red', 'gray']
     cmap = ListedColormap(colors)
-    
+
     im = ax.imshow(forest.grid, cmap=cmap, vmin=0, vmax=3)
-    
+
     def update(frame):
         forest.propagate_physical(wind=(1, 0))
         im.set_data(forest.grid)
         ax.set_title(f'Timestep: {frame}')
         return [im]
-    
-    anim = animation.FuncAnimation(fig, update, frames=n_steps, 
+
+    anim = animation.FuncAnimation(fig, update, frames=n_steps,
                                    interval=100, blit=True)
     return anim
 ```
@@ -397,7 +397,7 @@ def animate_fire(forest, n_steps=100):
 ## 🔬 Questions de recherche intéressantes
 
 1. **Existe-t-il un seuil critique de densité en dessous duquel le feu ne se propage jamais ?**
-   
+
 2. **Comment l'intensité du vent affecte-t-elle la forme du feu (elliptique) ?**
 
 3. **Quelle est la stratégie optimale de placement de coupe-feux avec un budget limité ?**
@@ -425,20 +425,6 @@ def animate_fire(forest, n_steps=100):
 - `mesa` - Framework pour automates cellulaires
 - `numba` - Accélération de code (JIT)
 - `pygame` - Visualisation interactive temps réel
-
----
-
-## ⏱️ Planning suggéré (2 semaines)
-
-### Semaine 1 :
-- **Jours 1-2** : Modèle de percolation simple + visualisations
-- **Jours 3-4** : Ajout vent, humidité, topographie
-- **Jours 5-7** : Diffusion thermique + validation
-
-### Semaine 2 :
-- **Jours 8-10** : Stratégies d'intervention + optimisation
-- **Jours 11-12** : Analyse statistique + graphiques
-- **Jours 13-14** : Documentation, rapport, nettoyage code
 
 ---
 
