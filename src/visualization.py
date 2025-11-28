@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.colors import ListedColormap
-from src.forest import CellState, ForestGrid
+from forest import CellState, ForestGrid
 
 # Configuration des couleurs
 COLORS = {
