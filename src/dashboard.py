@@ -62,7 +62,8 @@ class PhysicsDashboard:
         self.wind = WindModel(direction=np.pi/4, speed=0.5)
         self.humidity = HumidityMap(self.size, base_humidity=0.3, seed=self.seed)
         self.topography = TopographyMap(self.size, max_elevation=50, seed=self.seed)
-        self.vegetation = None  # Optional
+        self.vegetation = generate_vegetation_map(self.size, None) 
+            
         
         # Physical model
         self.physical_model = PhysicalForestModel(
